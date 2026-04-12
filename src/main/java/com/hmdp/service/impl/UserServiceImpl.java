@@ -82,9 +82,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String tokenKey = LOGIN_USER_KEY + token;
         // User 转换成Map 存储进入reids
         Map<String, Object> userMap = BeanUtil.beanToMap(userDTO,new HashMap<>(),
-                CopyOptions.create().setIgnoreNullValue(true).
-                        setFieldValueEditor((filedName,fieldValue) -> fieldValue.toString())); //把long转换
-        redisTemplate.opsForHash().putAll(token,userMap);
+                CopyOptions.create()
+                        .setIgnoreNullValue(true)
+                        .setFieldValueEditor((filedName,fieldValue) ->
+                                fieldValue == null ? null : fieldValue.toString())); //把long转换
+        redisTemplate.opsForHash().putAll(tokenKey,userMap);
         //设置token有效期  用户一直登录
         redisTemplate.expire(tokenKey,LOGIN_USER_TTL,TimeUnit.SECONDS);
         // token还需要  写入浏览器 返回前端即可
