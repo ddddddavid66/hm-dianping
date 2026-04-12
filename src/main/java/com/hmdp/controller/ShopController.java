@@ -26,6 +26,8 @@ public class ShopController {
     @Resource
     public IShopService shopService;
 
+
+
     /**
      * 根据id查询商铺信息
      * @param id 商铺id
