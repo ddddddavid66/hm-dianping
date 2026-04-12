@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -42,11 +43,14 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
             List<ShopType> typeList = JSONUtil.toList(typeJson,ShopType.class);
             return Result.ok(typeList);
         }
+        if(typeJson != null){ //也就是""
+            return Result.fail("类型不存在");
+        }
         //没有 查询数据库
         List<ShopType> typeList = typeService.query().orderByAsc("sort").list();
         //数据库没有 返回空
         if(typeList.isEmpty()){
-            redisTemplate.opsForValue().set(key,null);
+            redisTemplate.opsForValue().set(key,"",RedisConstants.CACHE_NULL_TTL, TimeUnit.MINUTES);
             return Result.fail("没有商户类型");
         }
         //有 返回 加 写入redis
