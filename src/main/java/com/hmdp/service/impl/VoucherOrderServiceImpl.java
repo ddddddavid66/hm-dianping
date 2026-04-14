@@ -8,15 +8,21 @@ import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.service.IVoucherService;
+import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -33,6 +39,10 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private ISeckillVoucherService seckillVoucherService;
     @Autowired
     private RedisIdWorker redisIdWorker;
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+    @Autowired
+    private RedissonClient redissonClient;
 
 
     @Override
@@ -53,9 +63,22 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("没有库存");
         }
         Long userId = UserHolder.getUser().getId();
-        synchronized (userId.toString().intern()) {
+        //获取锁
+        RLock lock = redissonClient.getLock(RedisConstants.LOCK_ORDER_KEY + userId);
+        //boolean flag = lock.tryLock(1,RedisConstants.LOCK_ORDER_TTL, TimeUnit.SECONDS);
+        boolean flag = lock.tryLock();
+        /*SimpleRedisLock redisLock = new SimpleRedisLock("order" + userId, redisTemplate);
+        boolean flag = redisLock.tryLock(5);*/
+        if(!flag){ //获取失败
+            return Result.fail("不允许重复下单");
+        }
+        //获取成功
+        try {
             IVoucherOrderService proxy =  (IVoucherOrderService) AopContext.currentProxy();
             return proxy.createOrder(seckillVoucher,voucherId,userId);
+        }finally {
+            //redisLock.unLock();
+            lock.unlock();
         }
     }
 
