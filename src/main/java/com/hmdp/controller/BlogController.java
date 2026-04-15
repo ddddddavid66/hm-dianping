@@ -69,4 +69,8 @@ public class BlogController {
     public Result queryByBlogId(@PathVariable Long id){
         return blogService.queryByBlogId(id);
     }
+    @GetMapping("/likes/{id}")
+    public Result queryByBlogLikes(@PathVariable("id") Long id) {
+        return blogService.queryByBlogLikes(id);
+    }
 }
