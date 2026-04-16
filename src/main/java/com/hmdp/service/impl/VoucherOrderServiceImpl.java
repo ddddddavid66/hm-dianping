@@ -13,9 +13,8 @@ import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.stream.*;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -51,7 +50,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Autowired
     private RedissonClient redissonClient;
     @Resource
-    private ApplicationContext applicationContext;
+    @Lazy
+    private IVoucherOrderService proxy;
 
     private static final DefaultRedisScript SECKILL_SCRIPT;
     //线程池
@@ -69,14 +69,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     // 注解 使类启动就执行任务
     @PostConstruct
     public void init() {
-        // 获取代理对象
-        proxy = (IVoucherOrderService) applicationContext.getBean(IVoucherOrderService.class);
         handleException();
         EXECUTOR_SERVICE.submit(new voUcherkillOrder());
     }
-
-    // 当前类的代理不能获取 设置成成员变量
-    private IVoucherOrderService proxy;
 
     // 创建线程启动 任务  现在不需要 阻塞队列 需要
     private class voUcherkillOrder implements Runnable {
@@ -227,7 +222,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         VoucherOrder voucherOrder = VoucherOrder.builder().id(orderId).userId(userId)
                 .voucherId(seckillVoucher.getVoucherId()).build();
         //  存入 阻塞队列
-        proxy = (IVoucherOrderService) AopContext.currentProxy();
         orderTask.add(voucherOrder);
         //  获取代理对象
         //返回订单id
@@ -263,7 +257,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         //获取成功
         try {
-            proxy = (IVoucherOrderService) AopContext.currentProxy();
             return proxy.createOrder(seckillVoucher, voucherId, userId);
         } finally {
             //redisLock.unLock();

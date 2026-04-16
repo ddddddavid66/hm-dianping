@@ -13,13 +13,18 @@ import com.hmdp.service.IUserService;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SystemConstants;
+import com.hmdp.utils.UserHolder;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -91,6 +96,56 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         redisTemplate.expire(tokenKey,LOGIN_USER_TTL,TimeUnit.SECONDS);
         // token还需要  写入浏览器 返回前端即可
         return Result.ok(token);
+    }
+
+    @Override
+    public Result sign() {
+        //获取用户
+        Long userId = UserHolder.getUser().getId();
+        // 获取日期
+        LocalDate now = LocalDate.now();
+        String keyPrefix = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
+        String key =  USER_SIGN_KEY  + userId+ keyPrefix;
+        //获取 今天是本月第几天
+        int dayOfMonth = now.getDayOfMonth();
+        //写入redis
+        redisTemplate.opsForValue().setBit(key,dayOfMonth - 1,true);
+        return Result.ok();
+    }
+
+    @Override
+    public Result signCount() {
+        //获取用户
+        Long userId = UserHolder.getUser().getId();
+        // 获取日期
+        LocalDate now = LocalDate.now();
+        String keyPrefix = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
+        String key =  USER_SIGN_KEY  + userId+ keyPrefix;
+        //获取 今天是本月第几天
+        int dayOfMonth = now.getDayOfMonth();
+        //获取本月的签到结果 得到10进制
+        List<Long> result = redisTemplate.opsForValue().bitField(key,
+                BitFieldSubCommands.create().get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0));
+        if(result == null || result.isEmpty()){
+            return Result.ok(0);
+        }
+        Long num = result.get(0);
+        if(num == null || num == 0){
+            return Result.ok(0);
+        }
+        int count = 0;
+        //让数字与1 做 与运算
+        // 得到的数 判断是否是0  0代表未签到
+        // 如果是1 代表签到了 所以 右移一位  直到遇到0
+        while(true){
+            if((num & 1) == 0){
+                break;
+            }else{
+                count++;
+                num >>>= 1; //右移
+            }
+        }
+        return Result.ok(count);
     }
 
     private User createNewUser(String phone) {

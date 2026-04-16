@@ -29,8 +29,6 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
 
     @Autowired
     private StringRedisTemplate redisTemplate;
-    @Resource
-    private IShopTypeService typeService;
 
 
     @Override
@@ -47,7 +45,7 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
             return Result.fail("类型不存在");
         }
         //没有 查询数据库
-        List<ShopType> typeList = typeService.query().orderByAsc("sort").list();
+        List<ShopType> typeList = query().orderByAsc("sort").list();
         //数据库没有 返回空
         if(typeList.isEmpty()){
             redisTemplate.opsForValue().set(key,"",RedisConstants.CACHE_NULL_TTL, TimeUnit.MINUTES);

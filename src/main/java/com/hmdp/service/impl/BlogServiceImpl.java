@@ -46,8 +46,6 @@ import static com.hmdp.utils.RedisConstants.FEED_KEY;
 @Service
 public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IBlogService {
     @Resource
-    private IBlogService blogService;
-    @Resource
     private IUserService userService;
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -72,7 +70,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Override
     public Result queryHotBlog(Integer current) {
         // 根据用户查询
-        Page<Blog> page = blogService.query()
+        Page<Blog> page = query()
                 .orderByDesc("liked")
                 .page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
         // 获取当前页数据
@@ -94,7 +92,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Double score = redisTemplate.opsForZSet().score(key, userId.toString());
         if(score == null){
             // 没有点赞  修改点赞数量
-            boolean flag2 = blogService.update()
+            boolean flag2 = update()
                     .setSql("liked = liked + 1").eq("id", id).update();
             if(flag2){
                 redisTemplate.opsForZSet().add(key,userId.toString(),System.currentTimeMillis());
@@ -102,7 +100,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             return Result.ok("点赞成功");
         }
         //点过了 取消点赞 并且修改isLike
-        boolean flag3 = blogService.update()
+        boolean flag3 = update()
                 .setSql("liked = liked - 1").eq("id", id).update();
         if(flag3){
             redisTemplate.opsForZSet().remove(key,userId.toString()); // 改redis删除用户
@@ -133,7 +131,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         UserDTO user = UserHolder.getUser();
         blog.setUserId(user.getId());
         // 保存探店博文
-        boolean flag = blogService.save(blog);
+        boolean flag = save(blog);
         if(!flag){
             return Result.fail("新增笔记失败");
         }

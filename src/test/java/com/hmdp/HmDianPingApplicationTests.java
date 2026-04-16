@@ -73,6 +73,21 @@ class HmDianPingApplicationTests {
             //分批写入redis
             redisTemplate.opsForGeo().add(key,geoList);
         }
-
     }
+
+    @Test
+    void testUV(){
+        String[] values = new String[1000];
+        int j = 0;
+        for (int i = 0; i < 1000000; i++) {
+            j = i % 1000;
+            values[j] = "user_" + i;
+            if(j == 999){
+                redisTemplate.opsForHyperLogLog().add("hl2",values);
+            }
+        }
+        Long count = redisTemplate.opsForHyperLogLog().size("hl2");
+        System.out.println(count);
+    }
+
 }
